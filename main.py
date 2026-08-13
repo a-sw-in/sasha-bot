@@ -21,6 +21,23 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+
+def get_member_role(guild: discord.Guild):
+    role_name = (os.getenv('MEMBER_ROLE_NAME') or 'Member').strip()
+    role_id_raw = (os.getenv('MEMBER_ROLE_ID') or '').strip()
+
+    if role_id_raw.isdigit():
+        role = guild.get_role(int(role_id_raw))
+        if role:
+            return role
+
+    role = discord.utils.get(guild.roles, name=role_name)
+    if role:
+        return role
+
+    role_name_lower = role_name.lower()
+    return discord.utils.find(lambda r: r.name.lower() == role_name_lower, guild.roles)
+
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name} ({bot.user.id})')
@@ -133,12 +150,31 @@ async def assign(ctx, admission_number: str):
             await ctx.send(f'Failed to register (status {p.status_code}).')
             return
         await ctx.send(f'Success — {ctx.author.mention} registered for `{admission_number}`.')
-        role = discord.utils.get(ctx.guild.roles, name='Member')
-        if role:
-            await ctx.author.add_roles(role)
+
+        role = get_member_role(ctx.guild)
+        if not role:
+            role_name = (os.getenv('MEMBER_ROLE_NAME') or 'Member').strip()
+            await ctx.send(f'Role not found. (current name: {role_name})')
+            return
+
+        bot_member = ctx.guild.me
+        if not bot_member or not bot_member.guild_permissions.manage_roles:
+            await ctx.send('I need Manage Roles permission to assign roles.')
+            return
+
+        if role >= bot_member.top_role:
+            await ctx.send('I cannot assign that role because it is above my highest role.')
+            return
+
+        try:
+            await ctx.author.add_roles(role, reason='Verified via assign command')
             await ctx.send(f'{ctx.author.mention}, you are now a member of KULT Esports!!')
-        else:
-            await ctx.send('Role not found.')
+        except discord.Forbidden:
+            logging.exception('Role assignment forbidden for role %s in guild %s', role.id, ctx.guild.id)
+            await ctx.send('Role assign failed: missing permissions or role hierarchy issue.')
+        except discord.HTTPException:
+            logging.exception('Discord API error while assigning role %s in guild %s', role.id, ctx.guild.id)
+            await ctx.send('Role assign failed due to a Discord API error. Please try again.')
 
     except requests.RequestException:
         logging.exception('Failed to update Airtable')
