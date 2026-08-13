@@ -26,13 +26,6 @@ async def on_ready():
     print(f'Logged in as {bot.user.name} ({bot.user.id})')
     print('------')
 
-@bot.event
-async def on_member_join(member):
-    channel = discord.utils.get(member.guild.text_channels, name='welcome')
-    if channel:
-        await channel.send(f'Welcome to the KULT Esports, {member.mention}!')
-
-
 @bot.command(name="assign")
 async def assign(ctx, admission_number: str):
     if ctx.guild is None:
@@ -160,75 +153,6 @@ async def kick(ctx, member: discord.Member, *, reason=None):
 
 
 
-
-
-
-
-@bot.command()
-@commands.has_role('Member')
-async def secret(ctx,*, message):
-    await ctx.send(f'{message}')
-@secret.error
-async def secret_error(ctx, error):
-    if isinstance(error, commands.MissingRole):
-        await ctx.send(f'Sorry {ctx.author.mention}, you do not have the required role to use this command.')
-
-@bot.command()
-async def dm(ctx,*, message):
-    await ctx.author.send(f'Message sent to {message}.')
-
-
-@bot.command()
-async def poll(ctx, *, question):
-    embed = discord.Embed(title="KULT Esports", description=question, color=discord.Color.blue())
-    poll_message = await ctx.send(embed=embed)
-    await poll_message.add_reaction("👍")
-    await poll_message.add_reaction("👎")
-
-@bot.command()
-async def reply(ctx, *, message):
-    await ctx.reply(f'reply to msg')
-
-
-
-
-
-
-
-@bot.event
-async def on_message(message):
-    if message.author.bot:
-        return
-    if message.content.startswith(bot.command_prefix):
-        await bot.process_commands(message)
-        return
-    if "sasha" in message.content.lower():
-        await message.channel.send(f"{message.author.mention}, I am here buddy, how can I help you?")
-
-
-
-
-
-    # list of words to delete (whole-word, case-insensitive). Update this list as needed.
-    banned_words = ['fuck', 'pussy', 'motherfucker', 'poorimone','thayoli', 'shit', 'bitch', 'asshole', 'dick', 'cunt']
-    pattern = re.compile(r"\b(?:" + "|".join(re.escape(w) for w in banned_words) + r")\b", re.IGNORECASE)
-
-
-
-
-
-
-    if message.guild and pattern.search(message.content or ""):
-        try:
-            await message.delete()
-            await message.channel.send(f"{message.author.mention}, please refrain from using inappropriate language.")
-        except discord.Forbidden:
-            logging.warning('Missing permissions to delete messages in %s', message.guild)
-        except Exception:
-            logging.exception('Failed to delete message')
-        return
-
-    await bot.process_commands(message)
 
 
 
