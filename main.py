@@ -8,6 +8,7 @@ import requests
 import urllib.parse
 import re
 
+
 # ============================================================
 # LOAD ENVIRONMENT VARIABLES
 # ============================================================
@@ -92,6 +93,7 @@ async def on_ready():
 
 @bot.event
 async def on_member_join(member):
+
     channel = discord.utils.get(
         member.guild.text_channels,
         name='welcome'
@@ -104,7 +106,7 @@ async def on_member_join(member):
 
 
 # ============================================================
-# AIRTABLE REQUEST FUNCTION
+# AIRTABLE REQUEST
 # ============================================================
 
 def airtable_request(
@@ -167,17 +169,25 @@ def airtable_request(
 @bot.command(name="assign")
 async def assign(ctx, admission_number: str):
 
+    # --------------------------------------------------------
+    # CHECK SERVER
+    # --------------------------------------------------------
+
     if ctx.guild is None:
         await ctx.send("This command must be used in a server.")
         return
 
-    if (
-        not AIRTABLE_API_KEY
-        or not AIRTABLE_BASE_ID
-        or not AIRTABLE_TABLE_NAME
-    ):
+    # --------------------------------------------------------
+    # CHECK AIRTABLE CONFIGURATION
+    # --------------------------------------------------------
+
+    if not AIRTABLE_API_KEY or not AIRTABLE_BASE_ID or not AIRTABLE_TABLE_NAME:
         await ctx.send("Error occured contact admin.")
         return
+
+    # --------------------------------------------------------
+    # AIRTABLE HEADERS
+    # --------------------------------------------------------
 
     headers = {
         'Authorization': f'Bearer {AIRTABLE_API_KEY}',
@@ -185,7 +195,7 @@ async def assign(ctx, admission_number: str):
     }
 
     # --------------------------------------------------------
-    # AIRTABLE URL
+    # AIRTABLE TABLE URL
     # --------------------------------------------------------
 
     table_quoted = urllib.parse.quote(
@@ -193,17 +203,17 @@ async def assign(ctx, admission_number: str):
         safe=''
     )
 
-    url = (
-        f'https://api.airtable.com/v0/'
-        f'{AIRTABLE_BASE_ID}/'
-        f'{table_quoted}'
-    )
+    url = f'https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{table_quoted}'
+
+    # --------------------------------------------------------
+    # USER DISCORD ID
+    # --------------------------------------------------------
+
+    user_id_str = str(ctx.author.id)
 
     # --------------------------------------------------------
     # CHECK IF USER IS ALREADY REGISTERED
     # --------------------------------------------------------
-
-    user_id_str = str(ctx.author.id)
 
     discord_fields = [
         'DiscordID',
@@ -215,10 +225,7 @@ async def assign(ctx, admission_number: str):
 
         for field in discord_fields:
 
-            formula = (
-                f"{{{field}}} = "
-                f"'{user_id_str}'"
-            )
+            formula = f"{{{field}}} = '{user_id_str}'"
 
             r_check = airtable_request(
                 'GET',
@@ -246,8 +253,7 @@ async def assign(ctx, admission_number: str):
             elif r_check.status_code == 422:
 
                 logging.error(
-                    'Airtable discord-id check formula invalid '
-                    'for field %s (422): %s',
+                    'Airtable discord-id check formula invalid for field %s (422): %s',
                     field,
                     r_check.text
                 )
@@ -257,16 +263,14 @@ async def assign(ctx, admission_number: str):
             else:
 
                 logging.error(
-                    'Airtable discord-check returned %s '
-                    'for field %s: %s',
+                    'Airtable discord-check returned %s for field %s: %s',
                     r_check.status_code,
                     field,
                     r_check.text
                 )
 
                 await ctx.send(
-                    f'Failed to query Airtable '
-                    f'(status {r_check.status_code}).'
+                    f'Failed to query Airtable (status {r_check.status_code}).'
                 )
 
                 return
@@ -287,25 +291,23 @@ async def assign(ctx, admission_number: str):
     # SEARCH ADMISSION NUMBER
     # --------------------------------------------------------
 
-    admission_value = (
-        admission_number
-        .strip()
-        .lower()
-    )
+    admission_value = admission_number.strip().lower()
 
-    # Escape single quotes for Airtable formula
-    admission_value = admission_value.replace(
-        '\\',
-        '\\\\'
-    ).replace(
-        "'",
-        "\\'"
+    # Escape characters that could break Airtable formula
+    admission_value = (
+        admission_value
+        .replace('\\', '\\\\')
+        .replace("'", "\\'")
     )
 
     formula = (
         f"LOWER({{Admission}}) = "
         f"'{admission_value}'"
     )
+
+    # --------------------------------------------------------
+    # QUERY AIRTABLE
+    # --------------------------------------------------------
 
     try:
 
@@ -347,7 +349,7 @@ async def assign(ctx, admission_number: str):
         return
 
     # --------------------------------------------------------
-    # PROCESS RESPONSE
+    # GET RECORDS
     # --------------------------------------------------------
 
     data = resp.json()
@@ -365,6 +367,10 @@ async def assign(ctx, admission_number: str):
 
         return
 
+    # --------------------------------------------------------
+    # GET RECORD
+    # --------------------------------------------------------
+
     record = records[0]
 
     fields = record.get(
@@ -373,7 +379,7 @@ async def assign(ctx, admission_number: str):
     )
 
     # --------------------------------------------------------
-    # CHECK IF ADMISSION ALREADY REGISTERED
+    # CHECK IF ADMISSION IS ALREADY REGISTERED
     # --------------------------------------------------------
 
     discord_id = (
@@ -385,8 +391,7 @@ async def assign(ctx, admission_number: str):
     if discord_id:
 
         await ctx.send(
-            f'Admission `{admission_number}` '
-            f'is already registered (contact admin).'
+            f'Admission `{admission_number}` is already registered (contact admin).'
         )
 
         return
@@ -408,14 +413,12 @@ async def assign(ctx, admission_number: str):
         return
 
     # --------------------------------------------------------
-    # UPDATE AIRTABLE
+    # UPDATE RECORD
     # --------------------------------------------------------
 
     try:
 
-        patch_url = (
-            f"{url}/{record_id}"
-        )
+        patch_url = f"{url}/{record_id}"
 
         payload = {
             'fields': {
@@ -441,23 +444,21 @@ async def assign(ctx, admission_number: str):
             )
 
             await ctx.send(
-                f'Failed to register '
-                f'(status {p.status_code}).'
+                f'Failed to register (status {p.status_code}).'
             )
 
             return
 
         # ----------------------------------------------------
-        # SUCCESS MESSAGE
+        # SUCCESS
         # ----------------------------------------------------
 
         await ctx.send(
-            f'Success — {ctx.author.mention} '
-            f'registered for `{admission_number}`.'
+            f'Success — {ctx.author.mention} registered for `{admission_number}`.'
         )
 
         # ----------------------------------------------------
-        # GIVE MEMBER ROLE
+        # GET MEMBER ROLE
         # ----------------------------------------------------
 
         role = discord.utils.get(
@@ -472,8 +473,7 @@ async def assign(ctx, admission_number: str):
             )
 
             await ctx.send(
-                f'{ctx.author.mention}, '
-                f'you are now a member of KULT Esports!!'
+                f'{ctx.author.mention}, you are now a member of KULT Esports!!'
             )
 
         else:
@@ -498,12 +498,7 @@ async def assign(ctx, admission_number: str):
 # ============================================================
 
 @bot.command()
-async def kick(
-    ctx,
-    member: discord.Member,
-    *,
-    reason=None
-):
+async def kick(ctx, member: discord.Member, *, reason=None):
 
     if ctx.author.guild_permissions.kick_members:
 
@@ -528,11 +523,7 @@ async def kick(
 
 @bot.command()
 @commands.has_role('Member')
-async def secret(
-    ctx,
-    *,
-    message
-):
+async def secret(ctx, *, message):
 
     await ctx.send(
         f'{message}'
@@ -540,10 +531,7 @@ async def secret(
 
 
 @secret.error
-async def secret_error(
-    ctx,
-    error
-):
+async def secret_error(ctx, error):
 
     if isinstance(
         error,
@@ -551,9 +539,7 @@ async def secret_error(
     ):
 
         await ctx.send(
-            f'Sorry {ctx.author.mention}, '
-            f'you do not have the required role '
-            f'to use this command.'
+            f'Sorry {ctx.author.mention}, you do not have the required role to use this command.'
         )
 
 
@@ -562,11 +548,7 @@ async def secret_error(
 # ============================================================
 
 @bot.command()
-async def dm(
-    ctx,
-    *,
-    message
-):
+async def dm(ctx, *, message):
 
     await ctx.author.send(
         f'Message sent to {message}.'
@@ -578,11 +560,7 @@ async def dm(
 # ============================================================
 
 @bot.command()
-async def poll(
-    ctx,
-    *,
-    question
-):
+async def poll(ctx, *, question):
 
     embed = discord.Embed(
         title="KULT Esports",
@@ -608,11 +586,7 @@ async def poll(
 # ============================================================
 
 @bot.command()
-async def reply(
-    ctx,
-    *,
-    message
-):
+async def reply(ctx, *, message):
 
     await ctx.reply(
         f'reply to msg'
@@ -620,7 +594,7 @@ async def reply(
 
 
 # ============================================================
-# MESSAGE EVENT
+# MESSAGE HANDLER
 # ============================================================
 
 @bot.event
@@ -655,7 +629,7 @@ async def on_message(message):
         )
 
     # --------------------------------------------------------
-    # BAD WORD FILTER
+    # BANNED WORD FILTER
     # --------------------------------------------------------
 
     if (
@@ -713,49 +687,8 @@ if __name__ == "__main__":
 
     else:
 
-        retry_delay = 60
-        max_retry_delay = 900
-
-        while True:
-
-            try:
-
-                bot.run(
-                    token,
-                    log_handler=handler,
-                    log_level=logging.DEBUG
-                )
-
-                break
-
-            except discord.HTTPException as exc:
-
-                if exc.status == 429:
-
-                    logging.warning(
-                        "Discord login rate-limited (429). "
-                        "Retrying in %s seconds.",
-                        retry_delay
-                    )
-
-                    time.sleep(
-                        retry_delay
-                    )
-
-                    retry_delay = min(
-                        retry_delay * 2,
-                        max_retry_delay
-                    )
-
-                    # Recreate the bot after bot.run() exits
-                    bot = commands.Bot(
-                        command_prefix='!',
-                        intents=intents
-                    )
-
-                    # Re-register events/commands is required
-                    # if the bot object is recreated, so raise
-                    # instead of silently starting an empty bot.
-                    raise
-
-                raise
+        bot.run(
+            token,
+            log_handler=handler,
+            log_level=logging.DEBUG
+        )
