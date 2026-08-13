@@ -33,15 +33,6 @@ async def on_member_join(member):
         await channel.send(f'Welcome to the KULT Esports, {member.mention}!')
 
 
-@bot.event
-async def on_message(message):
-    if message.author == bot.user:
-        return
-    if "sasha" in message.content.lower():
-        await message.channel.send(f"{message.author.mention}, I am here buddy, how can I help you?")
-    await bot.process_commands(message)
-
-
 @bot.command(name="assign")
 async def assign(ctx, admission_number: str):
     if ctx.guild is None:
@@ -211,6 +202,9 @@ async def on_message(message):
     if message.content.startswith(bot.command_prefix):
         await bot.process_commands(message)
         return
+    if "sasha" in message.content.lower():
+        await message.channel.send(f"{message.author.mention}, I am here buddy, how can I help you?")
+        await bot.process_commands(message)
 
 
 
