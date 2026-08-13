@@ -204,7 +204,6 @@ async def on_message(message):
         return
     if "sasha" in message.content.lower():
         await message.channel.send(f"{message.author.mention}, I am here buddy, how can I help you?")
-        await bot.process_commands(message)
 
 
 
