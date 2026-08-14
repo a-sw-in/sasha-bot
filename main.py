@@ -197,26 +197,13 @@ async def kick(ctx, member: discord.Member, *, reason=None):
     else:
         await ctx.send('You do not have permission to kick members.')
 
-
-
-
-
-
-
-
-
 @bot.command()
-@commands.has_role('Member')
-async def secret(ctx,*, message):
-    await ctx.send(f'{message}')
-@secret.error
-async def secret_error(ctx, error):
-    if isinstance(error, commands.MissingRole):
-        await ctx.send(f'Sorry {ctx.author.mention}, you do not have the required role to use this command.')
-
-@bot.command()
-async def dm(ctx,*, message):
-    await ctx.author.send(f'Message sent to {message}.')
+async def ban(ctx, member: discord.Member, *, reason=None):
+    if ctx.author.guild_permissions.ban_members:
+        await member.ban(reason=reason)
+        await ctx.send(f'{member.mention} has been banned from the server.')
+    else:
+        await ctx.send('You do not have permission to ban members.')
 
 
 @bot.command()
@@ -225,10 +212,6 @@ async def poll(ctx, *, question):
     poll_message = await ctx.send(embed=embed)
     await poll_message.add_reaction("👍")
     await poll_message.add_reaction("👎")
-
-@bot.command()
-async def reply(ctx, *, message):
-    await ctx.reply(f'reply to msg')
 
 
 
