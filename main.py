@@ -50,8 +50,13 @@ async def on_member_join(member):
         await channel.send(f'Welcome to the KULT Esports, {member.mention}!')
 
 
+ALLOWED_CHANNEL_ID = 1537194607870214285
+
 @bot.command(name="assign")
-async def assign(ctx, admission_number: str):
+async def assign(ctx, admission_number: str,message: str = None):
+    if ctx.channel.id != ALLOWED_CHANNEL_ID:
+        await ctx.send("Use whitelisting channel for this command, refer through the introduction channel.")
+        return
     if ctx.guild is None:
         await ctx.send("This command must be used in a server.")
         return
