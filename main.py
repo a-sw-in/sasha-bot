@@ -7,6 +7,20 @@ import time
 import requests
 import urllib.parse
 import re
+from flask import Flask
+import threading
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Sasha is online! ❤️"
+
+def run_web_server():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
+
+threading.Thread(target=run_web_server, daemon=True).start()
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
