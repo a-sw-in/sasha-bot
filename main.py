@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 import logging
+import asyncio
 from dotenv import load_dotenv
 import os
 import time
@@ -65,6 +66,9 @@ async def on_member_join(member):
 
 
 ALLOWED_CHANNEL_ID = 1537194607870214285
+
+
+
 
 @bot.command(name="assign")
 async def assign(ctx, admission_number: str,message: str = None):
@@ -188,6 +192,16 @@ async def assign(ctx, admission_number: str,message: str = None):
         try:
             await ctx.author.add_roles(role, reason='Verified via assign command')
             await ctx.send(f'{ctx.author.mention}, you are now a member of KULT Esports!!')
+            channel = bot.get_channel(LOG_CHANNEL_ID)
+            
+            if channel:
+                await channel.send(
+                    f"{ctx.author.mention} was assigned the member role."
+                    )
+
+
+
+
         except discord.Forbidden:
             logging.exception('Role assignment forbidden for role %s in guild %s', role.id, ctx.guild.id)
             await ctx.send('Role assign failed: missing permissions or role hierarchy issue.')
@@ -226,6 +240,133 @@ async def poll(ctx, *, question):
     poll_message = await ctx.send(embed=embed)
     await poll_message.add_reaction("👍")
     await poll_message.add_reaction("👎")
+
+
+
+
+
+GAME_ROLES = {
+    "<:freefire:1541335097951784970>": "Free Fire",
+    "<:coc:1541335403565686845>": "Clash of Clans",
+    "<:valorant:1541335286158598154>": "Valorant",
+    "<:bgmi:1541335173545857145>": "BGMI",
+    "<:efootball:1541335013956526151>": "EFOOTBALL",
+}
+
+
+
+GAME_ROLE_CHANNEL_ID = 1541337338733666335
+LOG_CHANNEL_ID = 1541360803649687663
+
+
+@bot.command()
+async def gg(ctx, *, question):
+    # Only allow !gg in the Game Role channel
+    if ctx.channel.id != GAME_ROLE_CHANNEL_ID:
+        await ctx.send("Please use this command in the Game Role channel.")
+        return
+    embed = discord.Embed(
+        title="KULT Esports",
+        description=question,
+        color=discord.Color.blue()
+    )
+
+    poll_message = await ctx.send(embed=embed)
+
+    for emoji in GAME_ROLES.keys():
+        try:
+            await poll_message.add_reaction(emoji)
+            await asyncio.sleep(0.5)
+        except Exception as e:
+            print(f"Failed to add {emoji}: {e}")
+
+@bot.event
+async def on_raw_reaction_add(payload):
+    # Ignore bot reactions
+    if payload.member is None or payload.member.bot:
+        return
+
+    # Only work in Game Role channel
+    if payload.channel_id != GAME_ROLE_CHANNEL_ID:
+        return
+
+    emoji = str(payload.emoji)
+
+    # Check if emoji is a game emoji
+    if emoji not in GAME_ROLES:
+        return
+
+    game_name = GAME_ROLES[emoji]
+
+    # Get member
+    guild = bot.get_guild(payload.guild_id)
+    member = guild.get_member(payload.user_id)
+
+    if member is None:
+        return
+
+    # Find role with the game name
+    role = discord.utils.get(guild.roles, name=game_name)
+
+    if role is None:
+        print(f"Role '{game_name}' not found!")
+        return
+
+    # Give role
+    if role not in member.roles:
+        await member.add_roles(role)
+
+    # Send confirmation
+    channel = bot.get_channel(LOG_CHANNEL_ID)
+
+    if channel:
+        await channel.send(
+            f"{member.mention} clicked **{game_name}** and received the **{game_name}** role!"
+        )
+
+@bot.event
+async def on_raw_reaction_remove(payload):
+    # Ignore reactions outside the Game Role channel
+    if payload.channel_id != GAME_ROLE_CHANNEL_ID:
+        return
+
+    emoji = str(payload.emoji)
+
+    # Check if emoji is a game emoji
+    if emoji not in GAME_ROLES:
+        return
+
+    game_name = GAME_ROLES[emoji]
+
+    # Get guild and member
+    guild = bot.get_guild(payload.guild_id)
+
+    if guild is None:
+        return
+
+    member = guild.get_member(payload.user_id)
+
+    if member is None:
+        return
+
+    # Find the corresponding role
+    role = discord.utils.get(guild.roles, name=game_name)
+
+    if role is None:
+        print(f"Role '{game_name}' not found!")
+        return
+
+    # Remove role
+    if role in member.roles:
+        await member.remove_roles(role)
+
+    # Send confirmation
+    channel = bot.get_channel(LOG_CHANNEL_ID)
+
+    if channel:
+        await channel.send(
+            f"{member.mention} removed their **{game_name}** reaction and lost the **{game_name}** role."
+        )
 
 
 
@@ -300,4 +441,3 @@ if __name__ == "__main__":
                     retry_delay = min(retry_delay * 2, max_retry_delay)
                     continue
                 raise
-
