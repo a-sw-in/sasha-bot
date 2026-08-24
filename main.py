@@ -192,6 +192,7 @@ async def assign(ctx, admission_number: str,message: str = None):
         try:
             await ctx.author.add_roles(role, reason='Verified via assign command')
             await ctx.send(f'{ctx.author.mention}, you are now a member of KULT Esports!!')
+            await ctx.send(f'{ctx.author.mention}, check this link for game role https://discord.com/channels/1534467407274573875/1541337338733666335/1541366439355875430')
             channel = bot.get_channel(LOG_CHANNEL_ID)
             
             if channel:
